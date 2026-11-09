@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/lisha.lokwani/working_directory/**)",
+      "Bash(mdfind -name \"Satori\")",
+      "Bash(mdfind -name \"Guideline skill\")"
+    ]
+  }
+}
