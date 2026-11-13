@@ -17,6 +17,8 @@ import {
   type FollowupsData,
   type ClarificationData,
   type DraftPreviewData,
+  type OpenItemsData,
+  type NextStepsData,
   type Reference,
 } from '../data/answer'
 
@@ -360,6 +362,60 @@ function DraftPreview({ data }: { data: DraftPreviewData }) {
   )
 }
 
+function OpenItems({ data, actions }: { data: OpenItemsData; actions: WidgetActions }) {
+  return (
+    <WidgetCard type="open_items">
+      <ol className="open-items">
+        {data.items.map((item, i) => {
+          const ref = item.refIndex != null ? data.references[item.refIndex] : undefined
+          const active =
+            actions.activeCite?.references === data.references && actions.activeCite.index === item.refIndex
+          return (
+            <li className="open-item" key={i}>
+              <span className="open-item__num">{i + 1}</span>
+              <div className="open-item__body">
+                <span className="open-item__title">
+                  {item.title}
+                  {ref ? (
+                    <button
+                      type="button"
+                      className={`citation-tag${active ? ' is-active' : ''}`}
+                      aria-pressed={active}
+                      aria-label={`Open source ${(item.refIndex ?? 0) + 1}`}
+                      onClick={() => actions.onCite(data.references, item.refIndex!)}
+                    >
+                      {(item.refIndex ?? 0) + 1}
+                    </button>
+                  ) : null}
+                </span>
+                <p className="open-item__desc">{item.desc}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </WidgetCard>
+  )
+}
+
+function NextSteps({ data, actions }: { data: NextStepsData; actions: WidgetActions }) {
+  return (
+    <WidgetCard type="next_steps">
+      <div className="next-steps">
+        {data.items.map((step, i) => (
+          <div className="next-step" key={i}>
+            <span className="next-step__text">{step.text}</span>
+            <button type="button" className="next-step__btn" onClick={() => actions.onAsk(step.text)}>
+              {step.action}
+              <Icon name="launch" size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </WidgetCard>
+  )
+}
+
 /** Registry: render any WidgetSpec. New widget types plug in here. */
 export function renderWidget(spec: WidgetSpec, key: number, actions: WidgetActions): ReactNode {
   switch (spec.type) {
@@ -367,6 +423,10 @@ export function renderWidget(spec: WidgetSpec, key: number, actions: WidgetActio
       return <Clarification key={key} data={spec.data} actions={actions} />
     case 'draft_preview':
       return <DraftPreview key={key} data={spec.data} />
+    case 'open_items':
+      return <OpenItems key={key} data={spec.data} actions={actions} />
+    case 'next_steps':
+      return <NextSteps key={key} data={spec.data} actions={actions} />
     case 'what_matters':
       return <WhatMatters key={key} data={spec.data} actions={actions} />
     case 'key_facts':

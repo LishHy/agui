@@ -4,8 +4,9 @@ import { TopBar } from './kd/components/TopBar'
 import { AgentSidebar } from './kd/components/AgentSidebar'
 import { HomePanel } from './kd/components/HomePanel'
 import { AnswerView, type Turn } from './kd/components/AnswerView'
+import { CompareView } from './kd/components/CompareView'
 import { ACTIVE_AGENT_ID, getAgent } from './kd/data/agents'
-import { buildOverviewForEntity, planAnswer, type AnswerPlan } from './kd/data/answer'
+import { buildOverviewForEntity, planAnswer, type AnswerPlan, type Source } from './kd/data/answer'
 
 export function App() {
   const [agentId, setAgentId] = useState(ACTIVE_AGENT_ID)
@@ -13,6 +14,8 @@ export function App() {
   const [initialCite, setInitialCite] = useState<number | null>(null)
   // A source is open in the viewer → hide the agent sidebar to give it room.
   const [sourceOpen, setSourceOpen] = useState(false)
+  // A source opened in the full-page compare experience (replaces the chat).
+  const [compare, setCompare] = useState<Source | null>(null)
   const turnId = useRef(0)
 
   // Default to light to match the Satori / KD design; presenter can toggle.
@@ -94,33 +97,40 @@ export function App() {
         />
 
         <div className="kd-body">
-          {inChat && sourceOpen ? null : (
-            <AgentSidebar activeAgentId={agentId} onSelectAgent={selectAgent} variant="home" />
-          )}
+          {compare ? (
+            <CompareView source={compare} onBack={() => setCompare(null)} />
+          ) : (
+            <>
+              {inChat && sourceOpen ? null : (
+                <AgentSidebar activeAgentId={agentId} onSelectAgent={selectAgent} variant="home" />
+              )}
 
-          <main
-            id="kd-content"
-            className={`kd-content${inChat ? ' kd-content--answer' : ''}`}
-            tabIndex={-1}
-          >
-            {!inChat ? (
-              <div className="kd-card">
-                <HomePanel agentId={agentId} onAsk={ask} />
-              </div>
-            ) : (
-              <AnswerView
-                thread={thread}
-                agent={getAgent(agentId)}
-                onAsk={ask}
-                onClarify={clarify}
-                onOpenDoc={openDoc}
-                onNewConversation={newConversation}
-                onTurnDone={turnDone}
-                initialCite={initialCite}
-                onSourceOpenChange={setSourceOpen}
-              />
-            )}
-          </main>
+              <main
+                id="kd-content"
+                className={`kd-content${inChat ? ' kd-content--answer' : ''}`}
+                tabIndex={-1}
+              >
+                {!inChat ? (
+                  <div className="kd-card">
+                    <HomePanel agentId={agentId} onAsk={ask} />
+                  </div>
+                ) : (
+                  <AnswerView
+                    thread={thread}
+                    agent={getAgent(agentId)}
+                    onAsk={ask}
+                    onClarify={clarify}
+                    onOpenDoc={openDoc}
+                    onNewConversation={newConversation}
+                    onTurnDone={turnDone}
+                    onCompare={setCompare}
+                    initialCite={initialCite}
+                    onSourceOpenChange={setSourceOpen}
+                  />
+                )}
+              </main>
+            </>
+          )}
         </div>
       </div>
 

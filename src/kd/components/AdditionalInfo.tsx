@@ -10,6 +10,7 @@ interface AdditionalInfoProps {
   agentName: string
   references: Reference[] | null
   onOpenRef: (references: Reference[], index: number) => void
+  onVisualizeGraph: () => void
   onClose: () => void
 }
 
@@ -18,7 +19,14 @@ interface AdditionalInfoProps {
  * what the agent understood and the filters it used; Sources lists the grounding
  * documents; Agent describes the agent that answered.
  */
-export function AdditionalInfo({ plan, agentName, references, onOpenRef, onClose }: AdditionalInfoProps) {
+export function AdditionalInfo({
+  plan,
+  agentName,
+  references,
+  onOpenRef,
+  onVisualizeGraph,
+  onClose,
+}: AdditionalInfoProps) {
   const [tab, setTab] = useState<Tab>('details')
 
   useEffect(() => {
@@ -94,6 +102,21 @@ export function AdditionalInfo({ plan, agentName, references, onOpenRef, onClose
           </>
         ) : tab === 'sources' ? (
           <section className="addl__section">
+            {references && references.some((r) => r.kind === 'source') ? (
+              <button type="button" className="addl__graph-card" onClick={onVisualizeGraph}>
+                <span className="addl__graph-card__icon">
+                  <Icon name="graph" size={20} />
+                </span>
+                <span className="addl__graph-card__text">
+                  <span className="addl__graph-card__title">Visualize sources in graph</span>
+                  <span className="addl__graph-card__sub">
+                    See how {references.filter((r) => r.kind === 'source').length} sources connect
+                  </span>
+                </span>
+                <Icon name="chevronRight" size={18} />
+              </button>
+            ) : null}
+
             <h3 className="addl__h">Grounding documents</h3>
             {references && references.some((r) => r.kind === 'source') ? (
               <ul className="addl__sources">

@@ -11,6 +11,7 @@ interface SourceViewerProps {
   onNavigate: (index: number) => void
   onClose: () => void
   onOpenDoc: (label: string) => void
+  onCompare: (source: Source) => void
 }
 
 type View = 'document' | 'graph'
@@ -87,7 +88,7 @@ interface PlacedEdge {
   deg: number
 }
 
-export function SourceViewer({ references, index, onNavigate, onClose, onOpenDoc }: SourceViewerProps) {
+export function SourceViewer({ references, index, onNavigate, onClose, onOpenDoc, onCompare }: SourceViewerProps) {
   const s = (references[index] as Extract<Reference, { kind: 'source' }>).source
   const paras = useMemo(() => buildParas(s), [s])
   const refIdxs = useMemo(() => paras.flatMap((p, i) => (p.ref ? [i] : [])), [paras])
@@ -259,8 +260,11 @@ export function SourceViewer({ references, index, onNavigate, onClose, onOpenDoc
               {collection} · {s.provider} · {pages} pages · Updated {updated}
             </p>
           </div>
+          <Button variant="outlined" leadingIcon="arrowsH" onClick={() => onCompare(s)}>
+            Compare
+          </Button>
           <Button
-            variant="tonal"
+            variant="filled"
             leadingIcon={scoped ? 'success' : 'sparkle'}
             onClick={() => setScoped((v) => !v)}
           >
@@ -288,13 +292,6 @@ export function SourceViewer({ references, index, onNavigate, onClose, onOpenDoc
       {view === 'document' ? (
         <div className="sv-doc">
           <div className="sv-main">
-            <div className="sv-refbar">
-              <span aria-live="polite">
-                Reference {refPos + 1} of {refIdxs.length}
-              </span>
-              <IconButton icon="chevronUp" label="Previous reference" onClick={() => goRef(refPos - 1)} />
-              <IconButton icon="chevronDown" label="Next reference" onClick={() => goRef(refPos + 1)} />
-            </div>
 
             <div className="sv-pages">
               <article className="sv-page" style={{ fontSize: `calc(1rem * ${zoom / 100})` }}>

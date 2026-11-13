@@ -22,6 +22,8 @@ export type WidgetType =
   | 'suggested_followups'
   | 'clarification'
   | 'draft_preview'
+  | 'open_items'
+  | 'next_steps'
 
 export const WIDGET_META: Record<WidgetType, { label: string; icon: IconName }> = {
   what_matters: { label: 'What matters', icon: 'bolt' },
@@ -35,6 +37,8 @@ export const WIDGET_META: Record<WidgetType, { label: string; icon: IconName }> 
   suggested_followups: { label: 'Suggested follow-ups', icon: 'cornerDownLeft' },
   clarification: { label: 'Need your input', icon: 'help' },
   draft_preview: { label: 'Draft', icon: 'file' },
+  open_items: { label: 'Open items holding up signature', icon: 'warning' },
+  next_steps: { label: 'Next steps', icon: 'cornerDownLeft' },
 }
 
 export type Confidence = 'High' | 'Medium' | 'Low'
@@ -145,6 +149,26 @@ export interface DraftPreviewData {
   /** Body paragraphs, rendered in order. */
   body: string[]
 }
+/** One blocker in an "open items" list. `refIndex` points into `OpenItemsData.references`. */
+export interface OpenItem {
+  title: string
+  desc: string
+  refIndex?: number
+}
+export interface OpenItemsData {
+  heading: string
+  items: OpenItem[]
+  /** Citations referenced by the items' chips. */
+  references: Reference[]
+}
+/** One recommended action; `action` is the short verb shown on its button. */
+export interface NextStep {
+  text: string
+  action: string
+}
+export interface NextStepsData {
+  items: NextStep[]
+}
 
 export type WidgetSpec =
   | { type: 'what_matters'; data: WhatMattersData }
@@ -158,6 +182,8 @@ export type WidgetSpec =
   | { type: 'suggested_followups'; data: FollowupsData }
   | { type: 'clarification'; data: ClarificationData }
   | { type: 'draft_preview'; data: DraftPreviewData }
+  | { type: 'open_items'; data: OpenItemsData }
+  | { type: 'next_steps'; data: NextStepsData }
 
 export interface AnswerPlan {
   id: string
@@ -736,6 +762,216 @@ export function isDraftRequest(question: string): boolean {
   return /\bdraft\b/.test(question.toLowerCase())
 }
 
+/* ------------------------------------------------ Draft: email to Acme stakeholders (SOW 3) */
+const ACME_DRAFT_PLAN = (question: string): AnswerPlan => ({
+  id: 'acme-draft',
+  title: 'Draft — email to Acme stakeholders',
+  entity: 'Acme Corp',
+  docCount: 0,
+  matchedDocs: 0,
+  question,
+  analysis: {
+    headline: 'Drafting the email..',
+    tools: [
+      { label: 'Read Status', desc: 'Checking SOW 3 open items' },
+      { label: 'Draft', desc: 'Preparing an email (not sent)' },
+    ],
+  },
+  context: {
+    understood: 'You want a drafted email to Acme stakeholders about finalising SOW 3, prepared but not sent.',
+    interpretation: [
+      { label: 'Intent', value: 'Draft an email' },
+      { label: 'Account', value: 'Acme Corp' },
+      { label: 'Subject', value: 'SOW 3 open items and signature' },
+    ],
+    filters: ['Contracts', 'Acme Corp', 'SOW 3'],
+  },
+  widgets: [
+    {
+      type: 'draft_preview',
+      data: {
+        status: 'Not sent',
+        to: 'dana.reyes@acme-corp.com; legal@acme-corp.com',
+        subject: 'SOW 3 — closing out the open items before signature',
+        body: [
+          'Hi Dana,',
+          "We're ready to finalise SOW 3 (Workflow expansion). Two items are still open on your side: the Exhibit B redline, with two unresolved comments, and the year 2 rate in Section 4. Once those are agreed we can countersign and hold the proposed 1 Dec 2026 start.",
+          'Could your legal and procurement leads join a short call this week to close these out?',
+        ],
+      },
+    },
+  ],
+})
+
+/* ------------------------------------------------ Why is SOW 3 (Workflow expansion) pending */
+const SOW3_PENDING_PLAN = (question: string): AnswerPlan => ({
+  id: 'sow3-pending',
+  title: 'Acme Corp — SOW 3 signature status',
+  entity: 'Acme Corp',
+  docCount: 3,
+  matchedDocs: 3,
+  question,
+  analysis: {
+    headline: 'Checking SOW 3 signature status..',
+    tools: [
+      { label: 'Read Draft', desc: 'Opening SOW 3 draft v4' },
+      { label: 'Read Redline', desc: 'Scanning the redline log' },
+      { label: 'Read Approvals', desc: 'Checking the approval sheet' },
+    ],
+  },
+  context: {
+    understood: 'You want to know why SOW 3 (Workflow expansion) is still unsigned.',
+    interpretation: [
+      { label: 'Intent', value: 'Explain signature delay' },
+      { label: 'Account', value: 'Acme Corp' },
+      { label: 'Document', value: 'SOW 3 — Workflow expansion' },
+    ],
+    filters: ['Contracts', 'Acme Corp', 'SOW 3', 'Draft'],
+  },
+  widgets: [
+    {
+      type: 'what_matters',
+      data: {
+        text: "SOW 3 is pending because Acme hasn't countersigned. Hyland signed the draft on 2 Nov 2026, and the documents show Acme's legal review of Exhibit B and its procurement approval both still open, with a proposed start of 1 Dec 2026.",
+        confidence: 'Medium',
+        references: [
+          {
+            kind: 'source',
+            source: {
+              label: 'Acme SOW 3 draft v4',
+              ref: 'Signature block',
+              date: 'Updated 9 Nov 2026',
+              provider: 'Content Lake',
+              docId: 'SOW3-ACME-V4',
+              excerpt: {
+                before: 'Executed by Supplier on 2 Nov 2026. ',
+                hit: 'Customer signature outstanding',
+                after: '; this Statement of Work is not yet in effect.',
+              },
+            },
+          },
+          {
+            kind: 'source',
+            source: {
+              label: 'Approval sheet',
+              ref: 'Procurement',
+              date: 'Updated 6 Nov 2026',
+              provider: 'Content Lake',
+              docId: 'APPROVAL-ACME-SOW3',
+              excerpt: {
+                before: 'Procurement approval for SOW 3 is ',
+                hit: 'open — pending legal sign-off on Exhibit B',
+                after: '.',
+              },
+            },
+          },
+          {
+            kind: 'inference',
+            inference: {
+              title: 'No stated reason for the delay',
+              statement:
+                "The documents record the status and open items but don't state a reason for the delay.",
+              confidence: 'Medium',
+              method: 'Checked: SOW 3 draft v4, redline log, approval sheet.',
+              dataPoints: [
+                { label: 'Supplier signed', value: '2 Nov 2026' },
+                { label: 'Customer signed', value: 'Not yet' },
+                { label: 'Proposed start', value: '1 Dec 2026' },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'open_items',
+      data: {
+        heading: 'Open items holding up signature',
+        items: [
+          {
+            title: 'Exhibit B is under redline',
+            desc: "Acme's counsel proposed changes to the architecture documentation protections. Two comments are still unresolved.",
+            refIndex: 0,
+          },
+          {
+            title: 'Fees schedule not agreed',
+            desc: "Section 4 shows both parties' versions of the year 2 rate. Acme's markup asks to hold the year 1 rate.",
+            refIndex: 1,
+          },
+          {
+            title: 'Start date depends on signature',
+            desc: 'The 1 Dec 2026 effective date is tied to execution, so a late signature moves the 18 month term.',
+            refIndex: 2,
+          },
+        ],
+        references: [
+          {
+            kind: 'source',
+            source: {
+              label: 'Redline log',
+              ref: 'Exhibit B',
+              date: '9 Nov 2026',
+              provider: 'Content Lake',
+              docId: 'REDLINE-ACME-SOW3',
+              excerpt: {
+                before: 'Exhibit B — architecture documentation: ',
+                hit: 'two comments unresolved',
+                after: ' (Customer counsel).',
+              },
+            },
+          },
+          {
+            kind: 'source',
+            source: {
+              label: 'Acme SOW 3 draft v4',
+              ref: '§4 Fees',
+              date: '9 Nov 2026',
+              provider: 'Content Lake',
+              docId: 'SOW3-ACME-V4',
+              excerpt: {
+                before: 'Section 4 records both ',
+                hit: 'year 2 rate versions',
+                after: "; Customer markup holds the year 1 rate.",
+              },
+            },
+          },
+          {
+            kind: 'source',
+            source: {
+              label: 'Acme SOW 3 draft v4',
+              ref: 'Effective date',
+              date: '9 Nov 2026',
+              provider: 'Content Lake',
+              docId: 'SOW3-ACME-V4',
+              excerpt: {
+                before: 'The effective date of ',
+                hit: '1 Dec 2026 is tied to execution',
+                after: '; a later signature shifts the 18 month term.',
+              },
+            },
+          },
+        ],
+      },
+    },
+    {
+      type: 'next_steps',
+      data: {
+        items: [
+          { text: 'Compare Exhibit B against the MSA confidentiality terms', action: 'Compare' },
+          { text: 'Draft an email for Acme stakeholders', action: 'Draft' },
+          { text: 'Check how a late signature affects the term', action: 'Check' },
+        ],
+      },
+    },
+  ],
+})
+
+/** True when a question asks why SOW 3 / the workflow expansion is still pending. */
+export function isSow3PendingQuestion(question: string): boolean {
+  const q = question.toLowerCase()
+  return q.includes('pending') && (q.includes('workflow expansion') || q.includes('sow 3') || q.includes('sow3'))
+}
+
 /**
  * The swappable agent layer. Replace the body with a live model/tool call that
  * returns the same AnswerPlan shape to go from scripted to generative.
@@ -745,8 +981,11 @@ export function planAnswer(question: string): AnswerPlan {
   if (needsAcmeClarification(question)) {
     return ACME_CLARIFICATION_PLAN(question)
   }
+  if (isSow3PendingQuestion(question)) {
+    return SOW3_PENDING_PLAN(question)
+  }
   if (isDraftRequest(question)) {
-    return DRAFT_PLAN(question)
+    return q.includes('acme') || q.includes('stakeholder') ? ACME_DRAFT_PLAN(question) : DRAFT_PLAN(question)
   }
   if (/\bprice|pricing|increas|uplift|escalat|cpi\b/.test(q)) {
     return PRICE_INCREASE_PLAN(question)

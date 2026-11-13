@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Icon } from '../../icons'
 import { IconButton } from '../../components/IconButton'
 import { SourceViewer } from './SourceViewer'
-import type { Reference } from '../data/answer'
+import type { Reference, Source } from '../data/answer'
 
 interface ViewerProps {
   references: Reference[]
@@ -10,10 +10,11 @@ interface ViewerProps {
   onNavigate: (index: number) => void
   onClose: () => void
   onOpenDoc: (label: string) => void
+  onCompare: (source: Source) => void
 }
 
 /** Derivation viewer for an AI-inference reference. */
-function InferenceViewer({ references, index, onNavigate, onClose }: Omit<ViewerProps, 'onOpenDoc'>) {
+function InferenceViewer({ references, index, onNavigate, onClose }: Omit<ViewerProps, 'onOpenDoc' | 'onCompare'>) {
   const ref = references[index]
   const inf = ref.kind === 'inference' ? ref.inference : null
 

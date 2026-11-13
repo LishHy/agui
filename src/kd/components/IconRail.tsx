@@ -1,4 +1,5 @@
 import { Icon } from '../../icons'
+import navLogo from '../../assets/nav-logo.png'
 
 const WORKSPACES = ['WS', 'KD', 'CF', 'AS', 'IR', 'UM', 'HR', 'CC']
 
@@ -7,7 +8,7 @@ export function IconRail() {
   return (
     <nav className="icon-rail" aria-label="Workspaces">
       <span className="icon-rail__logo" aria-hidden="true">
-        <Icon name="logo" size={26} />
+        <img className="icon-rail__logo-img" src={navLogo} alt="" width={26} height={26} />
       </span>
       <button type="button" className="rail-btn" aria-label="Home">
         <Icon name="dashboard" size={20} />

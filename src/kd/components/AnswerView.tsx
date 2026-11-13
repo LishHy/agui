@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../icons'
 import { IconButton } from '../../components/IconButton'
 import { AskInput } from './AskInput'
 import { AnalyzeBlock } from './AnalyzeBlock'
 import { ReferenceViewer } from './ReferenceViewer'
 import { AdditionalInfo } from './AdditionalInfo'
+import { SourcesGraph } from './SourcesGraph'
 import { renderWidget, type WidgetActions } from './widgets'
-import type { AnswerPlan, Reference } from '../data/answer'
+import type { AnswerPlan, Reference, Source } from '../data/answer'
 import type { Agent } from '../data/agents'
 
 /** One turn in the conversation: a question and the plan the agent answered with. */
@@ -15,6 +16,7 @@ export type Turn = { id: number; plan: AnswerPlan; phase: 'thinking' | 'answered
 type Panel =
   | { kind: 'ref'; references: Reference[]; index: number }
   | { kind: 'context'; plan: AnswerPlan }
+  | { kind: 'graph'; plan: AnswerPlan; references: Reference[] }
   | null
 
 interface AnswerViewProps {
@@ -26,6 +28,8 @@ interface AnswerViewProps {
   onNewConversation: () => void
   /** Flip a thinking turn to answered once its analyze animation completes. */
   onTurnDone: (id: number) => void
+  /** Open the full-page compare experience for a source. */
+  onCompare: (source: Source) => void
   /** Deep-link: open this reference (of the first what_matters widget) on mount. */
   initialCite?: number | null
   /** Notifies the shell whether a side panel is open (to hide the agent sidebar). */
@@ -104,6 +108,7 @@ export function AnswerView({
   onOpenDoc,
   onNewConversation,
   onTurnDone,
+  onCompare,
   initialCite,
   onSourceOpenChange,
 }: AnswerViewProps) {
@@ -122,6 +127,44 @@ export function AnswerView({
     return () => onSourceOpenChange?.(false)
   }, [panel, onSourceOpenChange])
 
+  // ---- Auto-scroll: keep the newest message in view as content appears -------
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  // Whether the view is parked at the bottom (so we may keep it pinned there).
+  // Starts false so the first answer opens at the top; follow-ups pin to bottom.
+  const pinnedRef = useRef(false)
+  const prevLenRef = useRef(0)
+
+  // A new follow-up turn glides to the latest message (and re-pins to bottom).
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    if (thread.length > prevLenRef.current && prevLenRef.current > 0) {
+      pinnedRef.current = true
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }
+    prevLenRef.current = thread.length
+  }, [thread])
+
+  // Follow height growth (tool reveal, widgets rendering) while pinned to bottom.
+  useEffect(() => {
+    const el = scrollRef.current
+    const content = contentRef.current
+    if (!el || !content) return
+    const onScroll = () => {
+      pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+    }
+    el.addEventListener('scroll', onScroll)
+    const ro = new ResizeObserver(() => {
+      if (pinnedRef.current) el.scrollTop = el.scrollHeight
+    })
+    ro.observe(content)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+    }
+  }, [])
+
   const actions: WidgetActions = {
     onAsk,
     onClarify,
@@ -133,7 +176,7 @@ export function AnswerView({
   const lastTurn = thread[thread.length - 1]
   const lastAnswered = lastTurn?.phase === 'answered'
   const followups = lastAnswered ? lastTurn.plan.widgets.find((w) => w.type === 'suggested_followups') : undefined
-  const hasSource = panel?.kind === 'ref'
+  const hasSource = panel?.kind === 'ref' || panel?.kind === 'graph'
   const title = lastTurn?.plan.title ?? 'Conversation'
 
   return (
@@ -151,28 +194,30 @@ export function AnswerView({
           </button>
         </div>
 
-        <div className="answer-scroll">
-          {thread.map((turn) => (
-            <div className="answer-turn" key={turn.id}>
-              <p className="question-bubble">{turn.plan.question}</p>
-              {turn.phase === 'thinking' ? (
-                <AnalyzeBlock plan={turn.plan} onDone={() => onTurnDone(turn.id)} />
-              ) : (
-                <AnswerTurn
-                  plan={turn.plan}
-                  actions={actions}
-                  onOpenContext={(plan) => setPanel({ kind: 'context', plan })}
-                />
-              )}
-            </div>
-          ))}
+        <div className="answer-scroll" ref={scrollRef}>
+          <div className="answer-thread" ref={contentRef}>
+            {thread.map((turn) => (
+              <div className="answer-turn" key={turn.id}>
+                <p className="question-bubble">{turn.plan.question}</p>
+                {turn.phase === 'thinking' ? (
+                  <AnalyzeBlock plan={turn.plan} onDone={() => onTurnDone(turn.id)} />
+                ) : (
+                  <AnswerTurn
+                    plan={turn.plan}
+                    actions={actions}
+                    onOpenContext={(plan) => setPanel({ kind: 'context', plan })}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         <footer className="answer-footer">
           {followups ? renderWidget(followups, 999, actions) : null}
           <AskInput onSubmit={onAsk} docked placeholder="Ask a question" />
           <p className="answer-ask__caption">
-            AI-generated answers can be wrong. Review answer context to verify.
+            AI can make mistakes. Please double-check responses.
           </p>
         </footer>
       </div>
@@ -184,6 +229,7 @@ export function AnswerView({
           onNavigate={(index) => setPanel({ kind: 'ref', references: panel.references, index })}
           onClose={() => setPanel(null)}
           onOpenDoc={onOpenDoc}
+          onCompare={onCompare}
         />
       ) : panel?.kind === 'context' ? (
         <AdditionalInfo
@@ -191,8 +237,13 @@ export function AnswerView({
           agentName={agent.name}
           references={firstReferences(panel.plan)}
           onOpenRef={(refs, index) => setPanel({ kind: 'ref', references: refs, index })}
+          onVisualizeGraph={() =>
+            setPanel({ kind: 'graph', plan: panel.plan, references: firstReferences(panel.plan) ?? [] })
+          }
           onClose={() => setPanel(null)}
         />
+      ) : panel?.kind === 'graph' ? (
+        <SourcesGraph plan={panel.plan} references={panel.references} onBack={() => setPanel(null)} />
       ) : null}
     </div>
   )
