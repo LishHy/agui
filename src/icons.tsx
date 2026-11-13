@@ -63,6 +63,7 @@ export type IconName =
   | 'graph'
   | 'butterfly'
   | 'umbrella'
+  | 'edit'
 
 const PATHS: Record<IconName, ReactNode> = {
   search: (
@@ -232,6 +233,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="9" y="9" width="11" height="11" rx="2" />
       <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
     </>
   ),
   bulb: (

@@ -14,7 +14,7 @@ export const SUGGESTIONS: Suggestion[] = [
   },
   {
     id: 'overview',
-    text: 'Provide an overview of the agreements Hyland has signed, or is signing, for Acme Corp.',
+    text: 'Provide an overview of the agreements Hyland has signed, or is signing, for Acme',
   },
   { id: 'notice', text: 'Which agreements need notice this month?' },
   { id: 'coc', text: 'Can Northwind terminate if Hyland is acquired?' },

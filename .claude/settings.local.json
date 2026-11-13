@@ -3,7 +3,10 @@
     "allow": [
       "Read(//Users/lisha.lokwani/working_directory/**)",
       "Bash(mdfind -name \"Satori\")",
-      "Bash(mdfind -name \"Guideline skill\")"
+      "Bash(mdfind -name \"Guideline skill\")",
+      "Bash(sips -s format jpeg -s formatOptions 85 -Z 168 avatar-user.png --out avatar-user.jpg)",
+      "Bash(rm avatar-user.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight avatar-user.jpg)"
     ]
   }
 }

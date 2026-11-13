@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Icon } from '../../icons'
+import { IconButton } from '../../components/IconButton'
 import type { AnswerPlan } from '../data/answer'
+import type { Agent } from '../data/agents'
 
 interface ThinkingStateProps {
   plan: AnswerPlan
+  agent: Agent
   onDone: () => void
+  onNewConversation: () => void
 }
 
 /**
@@ -12,7 +16,7 @@ interface ThinkingStateProps {
  * it is calling (revealed progressively), and a pending step. Presentational;
  * the content comes from the plan produced by the (swappable) planAnswer layer.
  */
-export function ThinkingState({ plan, onDone }: ThinkingStateProps) {
+export function ThinkingState({ plan, agent, onDone, onNewConversation }: ThinkingStateProps) {
   const tools = plan.analysis.tools
   const [open, setOpen] = useState(true)
   const [revealed, setRevealed] = useState(0)
@@ -30,10 +34,24 @@ export function ThinkingState({ plan, onDone }: ThinkingStateProps) {
   }, [])
 
   return (
-    <div className="analyze-view">
-      <p className="question-bubble">{plan.question}</p>
+    <div className="answer-view">
+      <div className="answer-main">
+        <div className="answer-header">
+          <span className={`answer-header__avatar agent-badge agent-badge--${agent.tone}`}>
+            <Icon name={agent.icon} size={20} />
+          </span>
+          <h1 className="answer-header__title">{plan.title}</h1>
+          <IconButton icon="maximize" label="Preview conversation" />
+          <button type="button" className="sat-btn sat-btn--filled" onClick={onNewConversation}>
+            <Icon name="plus" size={16} />
+            <span className="sat-btn__label">New Conversation</span>
+          </button>
+        </div>
 
-      <div className="analyze">
+        <div className="answer-scroll">
+          <p className="question-bubble">{plan.question}</p>
+
+          <div className="analyze">
         <button
           type="button"
           className="analyze__header"
@@ -74,7 +92,9 @@ export function ThinkingState({ plan, onDone }: ThinkingStateProps) {
               Understanding request
             </div>
           </div>
-        ) : null}
+          ) : null}
+          </div>
+        </div>
       </div>
     </div>
   )

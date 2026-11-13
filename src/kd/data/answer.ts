@@ -20,6 +20,8 @@ export type WidgetType =
   | 'timeline'
   | 'key_contacts'
   | 'suggested_followups'
+  | 'clarification'
+  | 'draft_preview'
 
 export const WIDGET_META: Record<WidgetType, { label: string; icon: IconName }> = {
   what_matters: { label: 'What matters', icon: 'bolt' },
@@ -31,6 +33,8 @@ export const WIDGET_META: Record<WidgetType, { label: string; icon: IconName }> 
   timeline: { label: 'Timeline', icon: 'history' },
   key_contacts: { label: 'Key contacts', icon: 'person' },
   suggested_followups: { label: 'Suggested follow-ups', icon: 'cornerDownLeft' },
+  clarification: { label: 'Need your input', icon: 'help' },
+  draft_preview: { label: 'Draft', icon: 'file' },
 }
 
 export type Confidence = 'High' | 'Medium' | 'Low'
@@ -98,6 +102,8 @@ export interface RelatedDoc {
   title: string
   sub: string
   date: string
+  /** Optional inline status chip shown after the title, e.g. "Pending signature". */
+  tag?: string
 }
 export interface RelatedDocsData {
   docs: RelatedDoc[]
@@ -117,6 +123,28 @@ export interface KeyContactsData {
 export interface FollowupsData {
   items: string[]
 }
+/** A single disambiguation choice shown in a clarification card. */
+export interface ClarificationOption {
+  id: string
+  title: string
+  meta: string
+}
+export interface ClarificationData {
+  /** Short natural-language prompt, e.g. "I found more than one customer called Acme." */
+  prompt: string
+  /** Heading above the options, e.g. "WHICH ACME DO YOU MEAN?" */
+  heading: string
+  options: ClarificationOption[]
+}
+/** A drafted-but-unsent message (email / notice). Always a draft, never sent from here. */
+export interface DraftPreviewData {
+  /** Sent-status chip, e.g. "Not sent". */
+  status: string
+  to: string
+  subject: string
+  /** Body paragraphs, rendered in order. */
+  body: string[]
+}
 
 export type WidgetSpec =
   | { type: 'what_matters'; data: WhatMattersData }
@@ -128,6 +156,8 @@ export type WidgetSpec =
   | { type: 'timeline'; data: TimelineData }
   | { type: 'key_contacts'; data: KeyContactsData }
   | { type: 'suggested_followups'; data: FollowupsData }
+  | { type: 'clarification'; data: ClarificationData }
+  | { type: 'draft_preview'; data: DraftPreviewData }
 
 export interface AnswerPlan {
   id: string
@@ -476,12 +506,248 @@ const OVERVIEW_PLAN = (question: string): AnswerPlan => ({
   ],
 })
 
+/* ------------------------------------------------- Clarification (disambiguation) */
+const ACME_CLARIFICATION_PLAN = (question: string): AnswerPlan => ({
+  id: 'acme-clarification',
+  title: 'Acme Corp — agreements overview',
+  entity: 'Acme Corp',
+  question,
+  docCount: 0,
+  matchedDocs: 0,
+  analysis: {
+    headline: 'Matching the customer..',
+    tools: [
+      { label: 'Search Records', desc: 'Looking up customers named Acme' },
+      { label: 'Search Records', desc: 'Checking policies and owners' },
+    ],
+  },
+  context: {
+    understood: 'You want an overview of the agreements for a customer called Acme.',
+    interpretation: [
+      { label: 'Intent', value: 'Summarise agreements' },
+      { label: 'Account', value: 'Acme (ambiguous)' },
+    ],
+    filters: ['Contracts', 'Customer: Acme'],
+  },
+  widgets: [
+    {
+      type: 'clarification',
+      data: {
+        prompt: 'I found more than one customer called Acme.',
+        heading: 'WHICH ACME DO YOU MEAN?',
+        options: [
+          { id: 'acme-corp', title: 'Acme Corporation', meta: 'Westlake, OH · Policy PL-20931 · Owner Dana Reyes' },
+          { id: 'acme-logistics', title: 'Acme Logistics', meta: 'Columbus, OH · Policy PL-18442 · Owner Sam Ortiz' },
+          { id: 'acme-health', title: 'Acme Health Ltd', meta: 'Leeds, UK · Policy PL-30177 · Owner Dana Reyes' },
+        ],
+      },
+    },
+  ],
+})
+
+/** The agreements overview answer for the resolved Acme customer. */
+export function buildOverviewForEntity(entity: string, question: string): AnswerPlan {
+  return {
+    id: 'acme-overview',
+    title: `${entity} — agreements overview`,
+    entity,
+    question,
+    docCount: 5,
+    matchedDocs: 5,
+    analysis: {
+      headline: 'Collecting agreements for this account..',
+      tools: [
+        { label: 'Search Chunks', desc: 'Searching contract repositories' },
+        { label: 'Search Chunks', desc: 'Listing agreements and SOWs' },
+        { label: 'Search Chunks', desc: 'Extracting key dates and terms' },
+        { label: 'Search Chunks', desc: 'Checking signature status' },
+      ],
+    },
+    context: {
+      understood:
+        'You want an overview of every agreement Hyland has signed or is signing with Acme Corp, and the terms they set.',
+      interpretation: [
+        { label: 'Intent', value: 'Summarise agreements' },
+        { label: 'Account', value: entity },
+        { label: 'Scope', value: 'Agreements, addenda and SOWs' },
+        { label: 'Documents', value: '5 documents' },
+        { label: 'Period', value: '2024–2027' },
+        { label: 'Expected answer', value: 'Document list with key terms' },
+      ],
+      filters: ['Contracts', entity, 'Executed', 'Agreements', 'SOWs', '5 documents'],
+    },
+    widgets: [
+      {
+        type: 'what_matters',
+        data: {
+          text: "Hyland has five agreements with Acme Corp: four signed and one pending signature. The 2024 Master Services Agreement governs everything else, its initial term ends 14 Jan 2027, and Statement of Work 3 is still waiting on Acme's signature.",
+          confidence: 'High',
+          references: [
+            {
+              kind: 'source',
+              source: {
+                label: 'Acme MSA 2024',
+                ref: '§1 Term',
+                date: 'Signed 15 Jan 2024',
+                provider: 'Content Lake',
+                docId: 'MSA-2024-ACME',
+                excerpt: {
+                  before: 'This Agreement commences on the Effective Date and continues for ',
+                  hit: 'an initial term of three (3) years',
+                  after: ', renewing annually thereafter.',
+                },
+              },
+            },
+            {
+              kind: 'source',
+              source: {
+                label: 'SOW 3 (draft)',
+                ref: 'Signature block',
+                date: 'Proposed 1 Dec 2026',
+                provider: 'Content Lake',
+                docId: 'SOW3-ACME',
+                excerpt: {
+                  before: 'This Statement of Work is ',
+                  hit: 'pending Customer signature',
+                  after: ' and is not yet in effect.',
+                },
+              },
+            },
+            {
+              kind: 'source',
+              source: {
+                label: 'Data Processing Addendum',
+                ref: 'Term',
+                date: 'Signed 15 Jan 2024',
+                provider: 'Content Lake',
+                docId: 'DPA-2024-ACME',
+                excerpt: {
+                  before: 'This Addendum is ',
+                  hit: 'co-terminous with the MSA',
+                  after: '.',
+                },
+              },
+            },
+          ],
+        },
+      },
+      {
+        type: 'key_facts',
+        data: {
+          tiles: [
+            { label: 'Customer since', value: '2024', sub: 'MSA signed 15 Jan 2024' },
+            { label: 'Initial term ends', value: '14 Jan 2027', sub: 'annual renewal after' },
+            { label: 'Signed', value: '4 of 5', sub: 'SOW 3 pending' },
+            { label: 'Active SOWs', value: '2', sub: 'SOW 1 and SOW 2' },
+          ],
+        },
+      },
+      {
+        type: 'related_documents',
+        data: {
+          docs: [
+            { title: 'Master Services Agreement', sub: 'Governing agreement, 3 year term', date: '15 Jan 2024' },
+            { title: 'Data Processing Addendum', sub: 'Personal data, co-terminous with MSA', date: '15 Jan 2024' },
+            { title: 'SOW 1: Platform implementation', sub: '12 months', date: '1 Feb 2024' },
+            { title: 'SOW 2: Managed services', sub: '24 months', date: '10 Jan 2025' },
+            {
+              title: 'SOW 3: Workflow expansion',
+              sub: '18 months, draft',
+              date: 'Proposed · 1 Dec 2026',
+              tag: 'Pending signature',
+            },
+          ],
+        },
+      },
+      {
+        type: 'timeline',
+        data: {
+          nodes: [
+            { year: '2024', desc: 'MSA and DPA signed' },
+            { year: 'Feb 2024', desc: 'SOW 1, implementation' },
+            { year: 'Jan 2025', desc: 'SOW 2, managed services' },
+            { year: 'Dec 2026', desc: 'SOW 3 proposed, unsigned', current: true },
+          ],
+        },
+      },
+      {
+        type: 'suggested_followups',
+        data: {
+          items: [
+            'What is the scope of confidentiality in these agreements?',
+            'Are there price uplift restrictions on Acme Corp’s account?',
+            'Are there background check requirements?',
+          ],
+        },
+      },
+    ],
+  }
+}
+
+/** True when a question is the ambiguous "Acme" agreements-overview ask. */
+export function needsAcmeClarification(question: string): boolean {
+  const q = question.toLowerCase()
+  return q.includes('acme') && q.includes('overview')
+}
+
+/* ---------------------------------------------------------------------- Drafting */
+const DRAFT_PLAN = (question: string): AnswerPlan => ({
+  id: 'draft',
+  title: 'Draft — price-increase notice',
+  entity: ACCOUNT,
+  question,
+  docCount: 0,
+  matchedDocs: 0,
+  analysis: {
+    headline: 'Drafting the notice..',
+    tools: [
+      { label: 'Read Terms', desc: 'Checking the adjustment cap and index' },
+      { label: 'Draft', desc: 'Preparing a notice (not sent)' },
+    ],
+  },
+  context: {
+    understood: 'You want a drafted price-increase notice, prepared but not sent.',
+    interpretation: [
+      { label: 'Intent', value: 'Draft a notice' },
+      { label: 'Account', value: 'Northwind Logistic Ltd' },
+      { label: 'Basis', value: 'Amendment 3 · 7% cap · Logistics Price Index' },
+    ],
+    filters: ['Contracts', 'Northwind Logistic Ltd', 'Amendment 3'],
+  },
+  widgets: [
+    {
+      type: 'draft_preview',
+      data: {
+        status: 'Not sent',
+        to: 'dana.reyes@northwind-logistics.com',
+        subject: 'Notice of annual price adjustment (Amendment 3)',
+        body: [
+          'Hi Dana,',
+          'This is formal notice that Hyland intends to apply the annual price adjustment permitted under Amendment 3, Section 5 — capped at 7% and indexed to the Logistics Price Index — effective on the next renewal date.',
+          'Happy to walk through the figures this week if that would help.',
+        ],
+      },
+    },
+  ],
+})
+
+/** True when a question asks the agent to draft a message / notice / email. */
+export function isDraftRequest(question: string): boolean {
+  return /\bdraft\b/.test(question.toLowerCase())
+}
+
 /**
  * The swappable agent layer. Replace the body with a live model/tool call that
  * returns the same AnswerPlan shape to go from scripted to generative.
  */
 export function planAnswer(question: string): AnswerPlan {
   const q = question.toLowerCase()
+  if (needsAcmeClarification(question)) {
+    return ACME_CLARIFICATION_PLAN(question)
+  }
+  if (isDraftRequest(question)) {
+    return DRAFT_PLAN(question)
+  }
   if (/\bprice|pricing|increas|uplift|escalat|cpi\b/.test(q)) {
     return PRICE_INCREASE_PLAN(question)
   }

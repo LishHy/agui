@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Icon } from '../../icons'
 import { Button } from '../../components/Button'
+import { useState } from 'react'
 import {
   WIDGET_META,
   type WidgetSpec,
@@ -14,6 +15,8 @@ import {
   type TimelineData,
   type KeyContactsData,
   type FollowupsData,
+  type ClarificationData,
+  type DraftPreviewData,
   type Reference,
 } from '../data/answer'
 
@@ -24,13 +27,15 @@ export interface WidgetActions {
   onCite: (references: Reference[], index: number) => void
   /** The currently open citation, so its chip can show an active state. */
   activeCite: { references: Reference[]; index: number } | null
+  /** Resolve a clarification by submitting the chosen option's label as the next turn. */
+  onClarify?: (label: string) => void
 }
 
 /* ---- Shared card chrome ---- */
 function WidgetCard({ type, children }: { type: WidgetType; children: ReactNode }) {
   const meta = WIDGET_META[type]
   return (
-    <section className="widget-card" aria-label={meta.label}>
+    <section className={`widget-card widget-card--${type}`} aria-label={meta.label}>
       <div className="widget-card__head">
         <span className="widget-icon">
           <Icon name={meta.icon} size={16} />
@@ -176,9 +181,12 @@ function RelatedDocuments({ data, actions }: { data: RelatedDocsData; actions: W
         {data.docs.map((d) => (
           <div className="doc-row" key={d.title}>
             <div className="doc-row__main">
-              <button type="button" className="doc-row__title" onClick={() => actions.onOpenDoc(d.title)}>
-                {d.title}
-              </button>
+              <span className="doc-row__titlerow">
+                <button type="button" className="doc-row__title" onClick={() => actions.onOpenDoc(d.title)}>
+                  {d.title}
+                </button>
+                {d.tag ? <span className="doc-row__tag">{d.tag}</span> : null}
+              </span>
               <span className="doc-row__sub">{d.sub}</span>
             </div>
             <span className="doc-row__date">{d.date}</span>
@@ -245,9 +253,120 @@ function SuggestedFollowups({ data, actions }: { data: FollowupsData; actions: W
   )
 }
 
+function Clarification({ data, actions }: { data: ClarificationData; actions: WidgetActions }) {
+  const [selected, setSelected] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+
+  function submit(id: string | null) {
+    if (sent) return
+    const option = data.options.find((o) => o.id === id) ?? data.options[0]
+    setSelected(option.id)
+    setSent(true)
+    actions.onClarify?.(option.title)
+  }
+
+  return (
+    <section className="clarify" aria-label="Need your input">
+      <span className="clarify__eyebrow">Need your input</span>
+      <p className="clarify__prompt">{data.prompt}</p>
+
+      <div className="clarify__card">
+        <span className="clarify__heading">{data.heading}</span>
+        <div className="clarify__options" role="radiogroup" aria-label={data.heading}>
+          {data.options.map((o) => (
+            <label key={o.id} className={`clarify-option${selected === o.id ? ' clarify-option--on' : ''}`}>
+              <input
+                type="radio"
+                name="clarify"
+                className="clarify-option__radio"
+                checked={selected === o.id}
+                disabled={sent}
+                onChange={() => setSelected(o.id)}
+              />
+              <span className="clarify-option__body">
+                <span className="clarify-option__title">{o.title}</span>
+                <span className="clarify-option__meta">{o.meta}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div className="clarify__actions">
+          <button
+            type="button"
+            className="sat-btn sat-btn--outlined"
+            disabled={sent}
+            onClick={() => submit(null)}
+          >
+            Decide for me
+          </button>
+          <button
+            type="button"
+            className="sat-btn sat-btn--filled"
+            disabled={sent || selected === null}
+            onClick={() => submit(selected)}
+          >
+            Send Answer
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function DraftPreview({ data }: { data: DraftPreviewData }) {
+  function copyDraft() {
+    const text = `To: ${data.to}\nSubject: ${data.subject}\n\n${data.body.join('\n\n')}`
+    void navigator.clipboard?.writeText(text)
+  }
+
+  return (
+    <section className="draft-card" aria-label="Draft message">
+      <div className="draft-card__head">
+        <span className="draft-card__label">Draft</span>
+        <span className="draft-chip">{data.status}</span>
+      </div>
+
+      <div className="draft-fields">
+        <div className="draft-field">
+          <span className="draft-field__label">To</span>
+          <span className="draft-field__value">{data.to}</span>
+        </div>
+        <div className="draft-field">
+          <span className="draft-field__label">Subject</span>
+          <span className="draft-field__value">{data.subject}</span>
+        </div>
+      </div>
+
+      <hr className="draft-divider" />
+
+      <div className="draft-body">
+        {data.body.map((p, i) => (
+          <p key={i}>{p}</p>
+        ))}
+      </div>
+
+      <div className="draft-actions">
+        <button type="button" className="sat-btn sat-btn--outlined sat-btn--sm" onClick={copyDraft}>
+          <Icon name="copy" size={16} />
+          Copy
+        </button>
+        <button type="button" className="sat-btn sat-btn--outlined sat-btn--sm">
+          <Icon name="edit" size={16} />
+          Edit
+        </button>
+      </div>
+    </section>
+  )
+}
+
 /** Registry: render any WidgetSpec. New widget types plug in here. */
 export function renderWidget(spec: WidgetSpec, key: number, actions: WidgetActions): ReactNode {
   switch (spec.type) {
+    case 'clarification':
+      return <Clarification key={key} data={spec.data} actions={actions} />
+    case 'draft_preview':
+      return <DraftPreview key={key} data={spec.data} />
     case 'what_matters':
       return <WhatMatters key={key} data={spec.data} actions={actions} />
     case 'key_facts':

@@ -608,7 +608,6 @@
   background: var(--md-sys-color-surface-container-lowest);
   border-radius: var(--radius-lg);
   min-height: 100%;
-  border: 1px solid var(--md-sys-color-outline-variant);
 }
 
 /* =====================================================================
@@ -938,7 +937,8 @@
   gap: var(--sp-6);
 }
 .analyze {
-  align-self: flex-start;
+  align-self: center;
+  width: 60%;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
@@ -1040,17 +1040,16 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-/* The conversation sits in a white card (like the home panel). */
+/* The conversation sits in a white card (full width, like the home card). */
 .answer-main {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  max-width: 980px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   min-height: 0;
   background: var(--md-sys-color-surface-container-lowest);
-  border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -1073,11 +1072,74 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+}
+.answer-header__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font: 500 16px/1 var(--md-sys-typescale-font);
+  flex-shrink: 0;
 }
 .answer-header__title {
   font: var(--type-title-large) var(--md-sys-typescale-font);
   color: var(--md-sys-color-on-surface);
   flex: 1 1 auto;
+  margin: 0;
+}
+
+/* ---- Satori filled button (New Conversation) ---- */
+.sat-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: 10px 24px;
+  border: none;
+  border-radius: 24px;
+  font: var(--type-label-large) var(--md-sys-typescale-font);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.sat-btn--filled {
+  background: #5654ac;
+  color: #ffffff;
+}
+.sat-btn--filled:hover {
+  background: color-mix(in srgb, #5654ac 88%, #000 12%);
+}
+.sat-btn--filled:focus-visible {
+  outline: 2px solid #5654ac;
+  outline-offset: 2px;
+}
+.sat-btn--outlined {
+  background: transparent;
+  color: #5654ac;
+  border: 1px solid var(--md-sys-color-outline);
+}
+.sat-btn--outlined:hover {
+  background: color-mix(in srgb, #5654ac 8%, transparent);
+}
+.sat-btn--outlined:focus-visible {
+  outline: 2px solid #5654ac;
+  outline-offset: 2px;
+}
+.sat-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.sat-btn img,
+.sat-btn svg {
+  flex-shrink: 0;
+}
+.sat-btn__label {
+  display: inline-block;
 }
 .answer-scopebar {
   display: flex;
@@ -1094,22 +1156,190 @@
   color: var(--md-sys-color-on-surface);
   font: var(--type-label-large) var(--md-sys-typescale-font);
 }
+/* Human question — right side, right-aligned within the 60% centered column. */
+/* One conversation turn — keeps question / answer alignment within the column. */
+.answer-turn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
 .question-bubble {
   align-self: flex-end;
-  max-width: 70%;
+  margin-right: 20%;
+  max-width: 60%;
+  width: fit-content;
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--radius-lg);
   background: var(--md-sys-color-surface-container-high);
   color: var(--md-sys-color-on-surface);
   font: var(--type-body-large) var(--md-sys-typescale-font);
 }
+/* AI answer stack — 60% of the conversation width, centered column, left-aligned. */
 .answer-stack {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+  width: 60%;
+  align-self: center;
 }
 .answer-stack > * {
   animation: rise var(--motion-standard) var(--easing-standard) both;
+}
+
+/* ---- Clarification (disambiguation) widget ---- */
+.clarify {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.clarify__eyebrow {
+  font: var(--type-label-medium) var(--md-sys-typescale-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.clarify__prompt {
+  margin: 0;
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font: var(--type-title-medium) var(--md-sys-typescale-font);
+}
+.clarify__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--md-sys-color-surface-container-lowest);
+}
+.clarify__heading {
+  font: var(--type-label-medium) var(--md-sys-typescale-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.clarify__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.clarify-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--motion-standard) var(--easing-standard),
+    background var(--motion-standard) var(--easing-standard);
+}
+.clarify-option:hover {
+  background: var(--md-sys-color-surface-container-low);
+}
+.clarify-option--on {
+  border-color: #5654ac;
+  background: color-mix(in srgb, #5654ac 6%, transparent);
+}
+.clarify-option__radio {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  accent-color: #5654ac;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.clarify-option__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.clarify-option__title {
+  font: var(--type-title-small) var(--md-sys-typescale-font);
+  color: var(--md-sys-color-on-surface);
+}
+.clarify-option__meta {
+  font: var(--type-body-medium) var(--md-sys-typescale-font);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.clarify__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+/* ---- Draft preview widget (draft email / notice, never sent) ---- */
+.draft-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--radius-md);
+  background: var(--md-sys-color-surface-container-lowest);
+}
+.draft-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.draft-card__label {
+  font: var(--type-label-medium) var(--md-sys-typescale-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.draft-chip {
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+  font: var(--type-label-medium) var(--md-sys-typescale-font);
+}
+.draft-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.draft-field {
+  display: flex;
+  gap: var(--sp-4);
+  font: var(--type-body-medium) var(--md-sys-typescale-font);
+}
+.draft-field__label {
+  flex: 0 0 64px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.draft-field__value {
+  color: var(--md-sys-color-on-surface);
+}
+.draft-divider {
+  border: none;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+  margin: 0;
+}
+.draft-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.draft-body p {
+  margin: 0;
+  font: var(--type-body-large) var(--md-sys-typescale-font);
+  color: var(--md-sys-color-on-surface);
+}
+.draft-actions {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.sat-btn--sm {
+  padding: 8px 16px;
+  font: var(--type-label-large) var(--md-sys-typescale-font);
 }
 
 /* ---- Shared widget card chrome ---- */
@@ -1240,8 +1470,9 @@
   gap: 2px;
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--radius-md);
-  background: var(--md-sys-color-primary-container);
-  color: var(--md-sys-color-on-primary-container);
+  background: var(--md-sys-color-surface-container-lowest);
+  border: 1px solid #dadadd;
+  color: var(--md-sys-color-on-surface);
 }
 .fact-tile__label {
   font: var(--type-label-medium) var(--md-sys-typescale-font);
@@ -1335,6 +1566,12 @@
   flex-direction: column;
   gap: 2px;
 }
+.doc-row__titlerow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
 .doc-row__title {
   font: var(--type-title-small) var(--md-sys-typescale-font);
   color: var(--md-sys-color-primary);
@@ -1346,6 +1583,14 @@
 }
 .doc-row__title:hover {
   text-decoration: underline;
+}
+.doc-row__tag {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--sat-cat-yellow-container, #fbf3db);
+  color: var(--sat-on-cat-yellow-container, #7e651b);
+  font: var(--type-label-small) var(--md-sys-typescale-font);
+  white-space: nowrap;
 }
 .doc-row__sub {
   font: var(--type-body-medium) var(--md-sys-typescale-font);
@@ -1498,13 +1743,20 @@
 
 /* ---- docked ask bar ---- */
 .answer-footer {
+  position: sticky;
+  bottom: 0;
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-4) var(--sp-5);
-  background: transparent;
-  border-top: 1px solid var(--md-sys-color-outline-variant);
+  background: var(--md-sys-color-surface-container-lowest);
+  z-index: 10;
+}
+/* Footer content column matches the 60% centered conversation column. */
+.answer-footer > * {
+  width: 60%;
 }
 
 /* ---- Message reply footer (feedback + full answer context) ---- */
@@ -1514,6 +1766,8 @@
   gap: var(--sp-3);
   margin-top: var(--sp-2);
   padding: var(--sp-1) 0;
+  width: 60%;
+  align-self: center;
 }
 .msg-footer__actions {
   display: flex;
