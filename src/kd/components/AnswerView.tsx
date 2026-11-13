@@ -186,7 +186,9 @@ export function AnswerView({
           <span className={`answer-header__avatar agent-badge agent-badge--${agent.tone}`}>
             <Icon name={agent.icon} size={20} />
           </span>
-          <h1 className="answer-header__title">{title}</h1>
+          <h1 className="answer-header__title" title={title}>
+            {title}
+          </h1>
           <IconButton icon="maximize" label="Preview conversation" />
           <button type="button" className="sat-btn sat-btn--filled" onClick={onNewConversation}>
             <Icon name="plus" size={16} />

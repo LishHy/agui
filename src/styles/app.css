@@ -1104,7 +1104,11 @@
   font: var(--type-title-large) var(--md-sys-typescale-font);
   color: var(--md-sys-color-on-surface);
   flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---- Satori filled button (New Conversation) ---- */
